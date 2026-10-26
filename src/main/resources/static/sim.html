@@ -1,0 +1,257 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIM Management | SIM Portal</title>
+
+    <style>
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f1f5f9;
+            color: #1e293b;
+        }
+
+        header {
+            background: #123b70;
+            color: white;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 850px;
+            margin: 30px auto;
+            padding: 24px;
+        }
+
+        .card {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 15px #00000010;
+        }
+
+        h2 { color: #123b70; }
+
+        label {
+            display: block;
+            margin-top: 14px;
+            font-weight: bold;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 12px;
+            margin-top: 7px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+        }
+
+        button {
+            padding: 12px 18px;
+            margin-top: 18px;
+            border: none;
+            border-radius: 6px;
+            background: #123b70;
+            color: white;
+            cursor: pointer;
+        }
+
+        button:hover { background: #1d4ed8; }
+
+        .refresh { margin-left: 8px; }
+
+        #message { overflow-wrap: anywhere; }
+
+        .table-wrap { overflow-x: auto; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+
+        th, td {
+            padding: 12px;
+            border-bottom: 1px solid #e2e8f0;
+            text-align: left;
+        }
+
+        th { background: #eaf1fb; }
+
+        .back {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: #123b70;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>SIM Activation Portal</h1>
+        <p>SIM Card Management</p>
+    </header>
+
+    <main class="container">
+        <a class="back" href="/">← Back to Home</a>
+
+        <section class="card">
+            <h2>Add New SIM</h2>
+
+            <form id="simForm">
+                <label for="simNumber">SIM Number / Identifier</label>
+                <input id="simNumber" type="text"
+                       placeholder="Example: SIM10001"
+                       maxlength="20" required>
+
+                <label for="provider">Telecom Provider</label>
+                <select id="provider" required>
+                    <option value="">Select provider</option>
+                    <option value="Airtel">Airtel</option>
+                    <option value="Jio">Jio</option>
+                    <option value="Vi">Vi</option>
+                    <option value="BSNL">BSNL</option>
+                </select>
+
+                <label for="simType">SIM Type</label>
+                <select id="simType" required>
+                    <option value="">Select type</option>
+                    <option value="Prepaid">Prepaid</option>
+                    <option value="Postpaid">Postpaid</option>
+                </select>
+
+                <button type="submit">Add SIM</button>
+            </form>
+
+            <p id="message" role="status"></p>
+        </section>
+
+        <section class="card">
+            <h2>SIM Inventory</h2>
+            <button type="button" class="refresh"
+                    onclick="loadSims()">Refresh List</button>
+
+            <p id="listMessage" role="status"></p>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>SIM Number</th>
+                            <th>Provider</th>
+                            <th>Type</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="simTable"></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        const simForm = document.getElementById("simForm");
+        const message = document.getElementById("message");
+
+        simForm.addEventListener("submit", async function(event) {
+            event.preventDefault();
+
+            const sim = {
+                simNumber: document.getElementById("simNumber").value.trim(),
+                provider: document.getElementById("provider").value,
+                simType: document.getElementById("simType").value
+            };
+
+            message.style.color = "#123b70";
+            message.textContent = "Saving SIM...";
+
+            try {
+                const response = await fetch("/api/sims", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(sim)
+                });
+
+                if (!response.ok) {
+                    throw new Error(
+                        response.status === 500
+                            ? "SIM number may already exist. Try a different identifier."
+                            : "Server returned status " + response.status
+                    );
+                }
+
+                const savedSim = await response.json();
+
+                message.style.color = "green";
+                message.textContent =
+                    "SIM added successfully! ID: " + savedSim.id;
+
+                simForm.reset();
+                await loadSims();
+
+            } catch (error) {
+                message.style.color = "red";
+                message.textContent = error.message;
+            }
+        });
+
+        async function loadSims() {
+            const table = document.getElementById("simTable");
+            const listMessage = document.getElementById("listMessage");
+
+            listMessage.textContent = "Loading SIM records...";
+            table.replaceChildren();
+
+            try {
+                const response = await fetch("/api/sims");
+
+                if (!response.ok) {
+                    throw new Error("Unable to load SIM records.");
+                }
+
+                const sims = await response.json();
+
+                if (sims.length === 0) {
+                    listMessage.textContent = "No SIM cards added yet.";
+                    return;
+                }
+
+                listMessage.textContent = "";
+
+                sims.forEach(function(sim) {
+                    const row = document.createElement("tr");
+
+                    [
+                        sim.id,
+                        sim.simNumber,
+                        sim.provider,
+                        sim.simType,
+                        sim.status
+                    ].forEach(function(value) {
+                        const cell = document.createElement("td");
+                        cell.textContent = value ?? "";
+                        row.appendChild(cell);
+                    });
+
+                    table.appendChild(row);
+                });
+
+            } catch (error) {
+                listMessage.textContent = error.message;
+            }
+        }
+
+        loadSims();
+    </script>
+</body>
+</html>

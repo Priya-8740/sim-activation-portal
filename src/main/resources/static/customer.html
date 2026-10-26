@@ -1,0 +1,179 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer Registration | SIM Portal</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f1f5f9;
+            color: #1e293b;
+        }
+
+        header {
+            background: #123b70;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .container {
+            max-width: 520px;
+            margin: 35px auto;
+            padding: 28px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px #00000012;
+        }
+
+        h2 {
+            text-align: center;
+            color: #123b70;
+        }
+
+        label {
+            display: block;
+            margin-top: 16px;
+            font-weight: bold;
+        }
+
+        input, textarea {
+            width: 100%;
+            padding: 12px;
+            margin-top: 7px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-size: 15px;
+        }
+
+        button {
+            width: 100%;
+            padding: 13px;
+            margin-top: 24px;
+            background: #123b70;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #1d4ed8;
+        }
+
+        #message {
+            margin-top: 16px;
+            text-align: center;
+            overflow-wrap: anywhere;
+        }
+
+        .back {
+            display: block;
+            margin-top: 18px;
+            text-align: center;
+            color: #123b70;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>SIM Activation Portal</h1>
+        <p>Customer Registration</p>
+    </header>
+
+    <main class="container">
+        <h2>Register Customer</h2>
+
+        <form id="customerForm">
+            <label for="fullName">Full Name</label>
+            <input type="text" id="fullName"
+                   placeholder="Enter your full name" required>
+
+            <label for="email">Email Address</label>
+            <input type="email" id="email"
+                   placeholder="Enter your email" required>
+
+            <label for="mobileNumber">Mobile Number</label>
+            <input type="tel" id="mobileNumber"
+                   placeholder="Enter mobile number"
+                   pattern="[0-9]{10,15}"
+                   title="Enter 10 to 15 digits"
+                   required>
+
+            <label for="address">Address</label>
+            <textarea id="address" rows="3"
+                      placeholder="Enter your address"></textarea>
+
+            <button type="submit">Register Customer</button>
+        </form>
+
+        <p id="message" role="status"></p>
+
+        <a class="back" href="/">Back to Home</a>
+    </main>
+
+    <script>
+        const form = document.getElementById("customerForm");
+        const message = document.getElementById("message");
+
+        form.addEventListener("submit", async function(event) {
+            event.preventDefault();
+
+            const customer = {
+                fullName: document.getElementById("fullName").value.trim(),
+                email: document.getElementById("email").value.trim(),
+                mobileNumber: document.getElementById("mobileNumber").value.trim(),
+                address: document.getElementById("address").value.trim()
+            };
+
+            message.style.color = "#123b70";
+            message.textContent = "Registering customer...";
+
+            try {
+                const response = await fetch("/api/customers", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(customer)
+                });
+
+                if (response.ok) {
+                    const savedCustomer = await response.json();
+
+                    message.style.color = "green";
+                    message.textContent =
+                        "Registration successful! Customer ID: " +
+                        savedCustomer.id;
+
+                    form.reset();
+                } else if (response.status === 409 ||
+                           response.status === 500) {
+                    message.style.color = "red";
+                    message.textContent =
+                        "Registration failed. Email or mobile number may already exist. Check the details and try again.";
+                } else {
+                    message.style.color = "red";
+                    message.textContent =
+                        "Registration failed. HTTP status: " +
+                        response.status;
+                }
+            } catch (error) {
+                message.style.color = "red";
+                message.textContent =
+                    "Cannot connect to server. Please check whether the application is running.";
+            }
+        });
+    </script>
+</body>
+</html>

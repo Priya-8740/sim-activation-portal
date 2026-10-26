@@ -1,0 +1,184 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIM Activation | SIM Portal</title>
+
+    <style>
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f1f5f9;
+            color: #1e293b;
+        }
+
+        header {
+            background: #123b70;
+            color: white;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 650px;
+            margin: 35px auto;
+            padding: 20px;
+        }
+
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px #00000010;
+        }
+
+        h2 { color: #123b70; }
+
+        label {
+            display: block;
+            margin-top: 18px;
+            font-weight: bold;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            margin-top: 7px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-size: 15px;
+        }
+
+        button {
+            padding: 13px;
+            width: 100%;
+            margin-top: 22px;
+            border: none;
+            border-radius: 6px;
+            background: #123b70;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        button:hover { background: #1d4ed8; }
+
+        #message {
+            margin-top: 20px;
+            line-height: 1.7;
+            overflow-wrap: anywhere;
+        }
+
+        .back {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: #123b70;
+        }
+
+        .hint {
+            color: #64748b;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>SIM Activation Portal</h1>
+        <p>Activation Request</p>
+    </header>
+
+    <main class="container">
+        <a class="back" href="/">← Back to Home</a>
+
+        <section class="card">
+            <h2>Activate Your SIM</h2>
+
+            <p class="hint">
+                Enter an existing Customer ID and an available SIM ID.
+                You can find these IDs in Customer Registration and SIM Management.
+            </p>
+
+            <form id="activationForm">
+                <label for="customerId">Customer ID</label>
+                <input type="number" id="customerId"
+                       min="1" placeholder="Example: 1" required>
+
+                <label for="simId">Available SIM ID</label>
+                <input type="number" id="simId"
+                       min="1" placeholder="Example: 1" required>
+
+                <button type="submit">Submit Activation Request</button>
+            </form>
+
+            <div id="message" role="status"></div>
+        </section>
+    </main>
+
+    <script>
+        const form = document.getElementById("activationForm");
+        const message = document.getElementById("message");
+
+        form.addEventListener("submit", async function(event) {
+            event.preventDefault();
+
+            const customerId =
+                Number(document.getElementById("customerId").value);
+
+            const simId =
+                Number(document.getElementById("simId").value);
+
+            message.style.color = "#123b70";
+            message.textContent = "Submitting request...";
+
+            try {
+                const response = await fetch("/api/activations", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        customerId: customerId,
+                        simId: simId
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(
+                        data.message || "Request failed. Please check the IDs."
+                    );
+                }
+
+                message.style.color = "green";
+                message.innerHTML = "";
+
+                const heading = document.createElement("h3");
+                heading.textContent = "Request Created Successfully!";
+
+                const requestId = document.createElement("p");
+                requestId.textContent = "Request ID: " + data.requestId;
+
+                const status = document.createElement("p");
+                status.textContent = "Status: " + data.status;
+
+                const note = document.createElement("p");
+                note.textContent = data.message;
+
+                message.append(heading, requestId, status, note);
+                form.reset();
+
+            } catch (error) {
+                message.style.color = "red";
+                message.textContent = error.message;
+            }
+        });
+    </script>
+</body>
+</html>

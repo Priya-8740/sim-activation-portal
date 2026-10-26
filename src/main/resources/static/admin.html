@@ -1,0 +1,303 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - SIM Activation Portal</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f1f5f9;
+            color: #1e293b;
+        }
+
+        header {
+            background: #0f172a;
+            color: white;
+            padding: 22px 7%;
+        }
+
+        header h1 {
+            margin: 0 0 8px;
+        }
+
+        header a {
+            color: #bfdbfe;
+            text-decoration: none;
+        }
+
+        main {
+            max-width: 1100px;
+            margin: 30px auto;
+            padding: 0 18px;
+        }
+
+        .summary {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-bottom: 25px;
+        }
+
+        .card {
+            background: white;
+            padding: 22px;
+            border-radius: 12px;
+            box-shadow: 0 3px 12px #0000000d;
+        }
+
+        .card h3 {
+            margin-top: 0;
+            color: #64748b;
+        }
+
+        .number {
+            font-size: 30px;
+            font-weight: bold;
+        }
+
+        .table-container {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 700px;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 13px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        th {
+            background: #f8fafc;
+        }
+
+        button {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 6px;
+            color: white;
+            cursor: pointer;
+            margin: 3px;
+        }
+
+        .approve {
+            background: #15803d;
+        }
+
+        .reject {
+            background: #dc2626;
+        }
+
+        .refresh {
+            background: #2563eb;
+            padding: 10px 16px;
+            margin-bottom: 15px;
+        }
+
+        #message {
+            margin: 12px 0;
+            font-weight: bold;
+        }
+
+        @media (max-width: 600px) {
+            .summary {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+<header>
+    <h1>SIM Activation Portal</h1>
+    <p>Admin Dashboard</p>
+    <a href="/">← Back to Home</a>
+</header>
+
+<main>
+    <section class="summary">
+        <div class="card">
+            <h3>Total Requests</h3>
+            <div class="number" id="total">0</div>
+        </div>
+
+        <div class="card">
+            <h3>Pending Requests</h3>
+            <div class="number" id="pending">0</div>
+        </div>
+
+        <div class="card">
+            <h3>Approved Requests</h3>
+            <div class="number" id="approved">0</div>
+        </div>
+    </section>
+
+    <div class="table-container">
+        <h2>Activation Requests</h2>
+        <button class="refresh" onclick="loadRequests()">
+            Refresh Requests
+        </button>
+
+        <div id="message"></div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Request ID</th>
+                    <th>Customer</th>
+                    <th>SIM Number</th>
+                    <th>Status</th>
+                    <th>Request Date</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+
+            <tbody id="requestTable">
+                <tr>
+                    <td colspan="6">Loading requests...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</main>
+
+<script>
+    async function loadRequests() {
+        const table = document.getElementById("requestTable");
+        const message = document.getElementById("message");
+
+        table.innerHTML =
+            '<tr><td colspan="6">Loading requests...</td></tr>';
+        message.textContent = "";
+
+        try {
+            const response = await fetch("/api/activations");
+
+            if (!response.ok) {
+                throw new Error("Unable to load activation requests.");
+            }
+
+            const requests = await response.json();
+
+            document.getElementById("total").textContent =
+                requests.length;
+
+            document.getElementById("pending").textContent =
+                requests.filter(r => r.status === "PENDING").length;
+
+            document.getElementById("approved").textContent =
+                requests.filter(r => r.status === "APPROVED").length;
+
+            if (requests.length === 0) {
+                table.innerHTML =
+                    '<tr><td colspan="6">No activation requests found.</td></tr>';
+                return;
+            }
+
+            table.innerHTML = "";
+
+            requests.forEach(request => {
+                const row = document.createElement("tr");
+
+                const values = [
+                    request.id,
+                    request.customer?.fullName ?? "N/A",
+                    request.simCard?.simNumber ?? "N/A",
+                    request.status,
+                    request.requestDate
+                        ? new Date(request.requestDate).toLocaleString()
+                        : "N/A"
+                ];
+
+                values.forEach(value => {
+                    const cell = document.createElement("td");
+                    cell.textContent = value;
+                    row.appendChild(cell);
+                });
+
+                const actionCell = document.createElement("td");
+
+                if (request.status === "PENDING") {
+                    const approveButton = document.createElement("button");
+                    approveButton.textContent = "Approve";
+                    approveButton.className = "approve";
+                    approveButton.onclick = () =>
+                        updateStatus(request.id, "APPROVED");
+
+                    const rejectButton = document.createElement("button");
+                    rejectButton.textContent = "Reject";
+                    rejectButton.className = "reject";
+                    rejectButton.onclick = () =>
+                        updateStatus(request.id, "REJECTED");
+
+                    actionCell.append(approveButton, rejectButton);
+                } else {
+                    actionCell.textContent = "Completed";
+                }
+
+                row.appendChild(actionCell);
+                table.appendChild(row);
+            });
+
+        } catch (error) {
+            table.innerHTML =
+                '<tr><td colspan="6">Could not load requests.</td></tr>';
+            message.textContent = error.message;
+        }
+    }
+
+    async function updateStatus(id, status) {
+        const message = document.getElementById("message");
+
+        if (!confirm("Are you sure you want to " + status.toLowerCase()
+                     + " request #" + id + "?")) {
+            return;
+        }
+
+        try {
+            const response = await fetch(
+                "/api/activations/" + id + "/status",
+                {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ status: status })
+                }
+            );
+
+            const result = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                throw new Error(
+                    result.message || "Unable to update request."
+                );
+            }
+
+            message.textContent = result.message;
+            await loadRequests();
+
+        } catch (error) {
+            message.textContent = error.message;
+        }
+    }
+
+    loadRequests();
+</script>
+</body>
+</html>
